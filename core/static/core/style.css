@@ -1,0 +1,47 @@
+body {
+    background: black;
+    color: white;
+    overflow: hidden;
+    margin: 0;
+}
+
+#game-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+}
+
+#map {
+    width: 5000px;
+    height: 5000px;
+    position: absolute;
+}
+
+.player, .npc {
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    border-radius: 50%;
+}
+
+.npc {
+    background-color: red;
+}
+
+.asteroid {
+    width: 15px;
+    height: 15px;
+    position: absolute;
+    background-color: gray;
+    border-radius: 50%;
+}
+
+#mini-map {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    width: 200px;
+    height: 200px;
+    background: rgba(0,0,0,0.7);
+    border: 2px solid white;
+}
