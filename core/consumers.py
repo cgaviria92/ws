@@ -9,27 +9,39 @@ MAP_WIDTH, MAP_HEIGHT = 5000, 5000
 BASE_POSITION = {"x": MAP_WIDTH // 2, "y": MAP_HEIGHT // 2}
 active_players = {}
 
+
 def generate_map_objects(num_objects=100):
     """Generar objetos en el mapa (Ej: Asteroides)."""
-    return [{"x": random.randint(0, MAP_WIDTH), "y": random.randint(0, MAP_HEIGHT)} for _ in range(num_objects)]
+    return [
+        {"x": random.randint(0, MAP_WIDTH), "y": random.randint(0, MAP_HEIGHT)}
+        for _ in range(num_objects)
+    ]
+
 
 MAP_OBJECTS = generate_map_objects()
 
 # Diccionario de NPCs
 npc_data = {}
+
+
 def generate_npcs(num_npcs=5):
     """Generar NPCs con posiciones y direcciones aleatorias."""
     new_npcs = {}
     for i in range(num_npcs):
         npc_id = f"npc_{i}"
         new_npcs[npc_id] = {
-            "position": {"x": random.randint(0, MAP_WIDTH), "y": random.randint(0, MAP_HEIGHT)},
+            "position": {
+                "x": random.randint(0, MAP_WIDTH),
+                "y": random.randint(0, MAP_HEIGHT),
+            },
             "direction": random.choice(["up", "down", "left", "right"]),
-            "speed": 5
+            "speed": 5,
         }
     return new_npcs
 
+
 npc_data = generate_npcs()
+
 
 # Corrutina para mover NPCs
 async def move_npcs():
@@ -55,13 +67,13 @@ async def move_npcs():
                 npc["direction"] = random.choice(["up", "down", "left", "right"])
 
         # Enviar actualización del mundo
-        await channel_layer.group_send("game_room", {
-            "type": "update_world",
-            "players": active_players,
-            "npcs": npc_data
-        })
+        await channel_layer.group_send(
+            "game_room",
+            {"type": "update_world", "players": active_players, "npcs": npc_data},
+        )
 
         await asyncio.sleep(1)  # Esperar 1 segundo
+
 
 class GameConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -71,19 +83,23 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         active_players[self.player_id] = {
             "color": self.color,
-            "position": self.position
+            "position": self.position,
         }
 
         await self.channel_layer.group_add("game_room", self.channel_name)
         await self.accept()
 
-        await self.send(json.dumps({
-            "action": "initialize",
-            "player_id": self.player_id,
-            "map": MAP_OBJECTS,
-            "players": active_players,
-            "npcs": npc_data
-        }))
+        await self.send(
+            json.dumps(
+                {
+                    "action": "initialize",
+                    "player_id": self.player_id,
+                    "map": MAP_OBJECTS,
+                    "players": active_players,
+                    "npcs": npc_data,
+                }
+            )
+        )
 
         await self.broadcast_update()
 
@@ -97,22 +113,25 @@ class GameConsumer(AsyncWebsocketConsumer):
         if data.get("action") == "move" and self.player_id in active_players:
             active_players[self.player_id]["position"] = {
                 "x": data["x"],
-                "y": data["y"]
+                "y": data["y"],
             }
             await self.broadcast_update()
 
     async def broadcast_update(self):
         """Enviar actualización de jugadores y NPCs a todos."""
-        await self.channel_layer.group_send("game_room", {
-            "type": "update_world",
-            "players": active_players,
-            "npcs": npc_data
-        })
+        await self.channel_layer.group_send(
+            "game_room",
+            {"type": "update_world", "players": active_players, "npcs": npc_data},
+        )
 
     async def update_world(self, event):
         """Se llama cuando se hace group_send("game_room", {...})."""
-        await self.send(json.dumps({
-            "action": "update_world",
-            "players": event["players"],
-            "npcs": event["npcs"]
-        }))
+        await self.send(
+            json.dumps(
+                {
+                    "action": "update_world",
+                    "players": event["players"],
+                    "npcs": event["npcs"],
+                }
+            )
+        )
