@@ -2,13 +2,24 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Juego WebSocket con Múltiples Jugadores</title>
+    <title>Juego Espacial - Mapa Expandido</title>
     <style>
+        body { 
+            overflow: hidden;  
+            background: black; 
+            color: white; 
+            margin: 0;
+        }
         #game-container {
-            width: 400px;
-            height: 400px;
-            border: 2px solid black;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
             position: relative;
+        }
+        #map {
+            width: 5000px;
+            height: 5000px;
+            position: absolute;
         }
         .player {
             width: 20px;
@@ -16,20 +27,45 @@
             position: absolute;
             border-radius: 50%;
         }
+        .asteroid {
+            width: 15px;
+            height: 15px;
+            position: absolute;
+            background-color: gray;
+            border-radius: 50%;
+        }
+        #mini-map {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid white;
+        }
     </style>
 </head>
 <body>
 
-<h1>Juego WebSocket - Múltiples Jugadores</h1>
-<p>Cada jugador tiene un color único. Usa las flechas para moverte.</p>
+<h1>Juego WebSocket - Mapa Expandido</h1>
+<p>Usa las flechas para moverte.</p>
 
-<div id="game-container"></div>
+<div id="game-container">
+    <div id="map"></div>
+</div>
+<canvas id="mini-map"></canvas>
 
 <script>
     let socket = new WebSocket("ws://" + window.location.host + "/ws/game/");
     let gameContainer = document.getElementById("game-container");
-    let playerId = null;  // Se asignará desde el servidor
+    let map = document.getElementById("map");
+    let playerId = null;
     let players = {};
+    let mapObjects = {};
+
+    let miniMapCanvas = document.getElementById("mini-map");
+    let miniCtx = miniMapCanvas.getContext("2d");
+    const MAP_WIDTH = 5000, MAP_HEIGHT = 5000;
 
     socket.onopen = function () {
         console.log("Conectado al WebSocket.");
@@ -38,65 +74,102 @@
     socket.onmessage = function (e) {
         let data = JSON.parse(e.data);
 
-        if (data.action === "assign_id") {
-            playerId = data.player_id;  // Guardamos nuestro ID
-        }
-
-        if (data.action === "update_players") {
+        if (data.action === "initialize") {
+            playerId = data.player_id;
+            mapObjects = data.map;
+            renderMapObjects();  // Asegurar que se dibujen los objetos espaciales
+            updatePlayers(data.players);
+            drawMiniMap();
+        } else if (data.action === "update_players") {
             updatePlayers(data.players);
         }
     };
+
+    function renderMapObjects() {
+        mapObjects.forEach(obj => {
+            let objectElement = document.createElement("div");
+            objectElement.classList.add("asteroid");
+            objectElement.style.left = obj.x + "px";
+            objectElement.style.top = obj.y + "px";
+            map.appendChild(objectElement);
+        });
+    }
 
     function updatePlayers(playersData) {
         for (let id in playersData) {
             let player = players[id];
 
             if (!player) {
-                // Crear un nuevo jugador si no existe en el frontend
                 player = document.createElement("div");
                 player.classList.add("player");
                 player.style.backgroundColor = playersData[id].color;
-                gameContainer.appendChild(player);
+                map.appendChild(player);
                 players[id] = player;
             }
 
-            // Actualizar posición
             player.style.left = playersData[id].position.x + "px";
             player.style.top = playersData[id].position.y + "px";
         }
 
-        // Remover jugadores que ya no están activos
         for (let id in players) {
             if (!(id in playersData)) {
-                gameContainer.removeChild(players[id]);
+                map.removeChild(players[id]);
                 delete players[id];
             }
         }
+
+        updateCamera();
+        drawMiniMap();
     }
 
-    // Manejar movimiento del jugador con el teclado
+    function updateCamera() {
+        if (!playerId || !players[playerId]) return;
+
+        let me = players[playerId];
+        let x = parseInt(me.style.left) || 0;
+        let y = parseInt(me.style.top) || 0;
+
+        // Corregir la transformación para que la cámara siga al jugador correctamente
+        map.style.transform = `translate(${-x + window.innerWidth / 2}px, ${-y + window.innerHeight / 2}px)`;
+    }
+
+    function drawMiniMap() {
+        miniCtx.clearRect(0, 0, 150, 150);
+        miniCtx.fillStyle = "black";
+        miniCtx.fillRect(0, 0, 150, 150);
+
+        mapObjects.forEach(obj => {
+            let mapX = (obj.x / MAP_WIDTH) * 150;
+            let mapY = (obj.y / MAP_HEIGHT) * 150;
+            miniCtx.fillStyle = "gray";
+            miniCtx.fillRect(mapX, mapY, 4, 4);
+        });
+
+        for (let id in players) {
+            let player = players[id];
+            let mapX = (parseInt(player.style.left) / MAP_WIDTH) * 150;
+            let mapY = (parseInt(player.style.top) / MAP_HEIGHT) * 150;
+            miniCtx.fillStyle = (id === playerId) ? "red" : "white";
+            miniCtx.fillRect(mapX, mapY, 6, 6);
+        }
+    }
+
     document.addEventListener("keydown", function (event) {
         if (!playerId || !players[playerId]) return;
 
         let player = players[playerId];
-        let x = parseInt(player.style.left) || 0;
-        let y = parseInt(player.style.top) || 0;
+        let x = parseInt(player.style.left) || 2500;
+        let y = parseInt(player.style.top) || 2500;
 
         switch (event.key) {
-            case "ArrowUp": y = Math.max(y - 10, 0); break;
-            case "ArrowDown": y = Math.min(y + 10, 380); break;
-            case "ArrowLeft": x = Math.max(x - 10, 0); break;
-            case "ArrowRight": x = Math.min(x + 10, 380); break;
+            case "ArrowUp": y -= 10; break;
+            case "ArrowDown": y += 10; break;
+            case "ArrowLeft": x -= 10; break;
+            case "ArrowRight": x += 10; break;
         }
 
-        // Enviar el nuevo estado del jugador al servidor
-        socket.send(JSON.stringify({
-            action: "move",
-            x: x,
-            y: y
-        }));
+        socket.send(JSON.stringify({ action: "move", x: x, y: y }));
     });
-
 </script>
 
 </body>
