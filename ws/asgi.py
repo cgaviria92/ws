@@ -1,17 +1,22 @@
 import os
 import django
-from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
-from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
 from core.routing import websocket_urlpatterns
+from core.consumers import move_npcs
+import asyncio
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ws.settings')  # Asegúrate de usar el nombre correcto
-
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ws.settings')
 django.setup()
 
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(),  # HTTP estándar (para Django)
-    "websocket": AuthMiddlewareStack(  # Middleware para manejar autenticación en WebSockets
-        URLRouter(websocket_urlpatterns)
-    ),
+    "http": get_asgi_application(),
+    "websocket": URLRouter(websocket_urlpatterns),
 })
+
+# Iniciar NPCs en segundo plano
+async def start_npcs():
+    await move_npcs()
+
+loop = asyncio.get_event_loop()
+loop.create_task(start_npcs())
