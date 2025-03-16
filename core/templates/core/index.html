@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Juego en tiempo real</title>
+    <title>Juego WebSocket con Múltiples Jugadores</title>
     <style>
         #game-container {
             width: 400px;
@@ -10,27 +10,26 @@
             border: 2px solid black;
             position: relative;
         }
-        #player {
+        .player {
             width: 20px;
             height: 20px;
-            background-color: red;
             position: absolute;
-            top: 0;
-            left: 0;
+            border-radius: 50%;
         }
     </style>
 </head>
 <body>
 
-<h1>Juego WebSocket</h1>
-<div id="game-container">
-    <div id="player"></div>
-</div>
+<h1>Juego WebSocket - Múltiples Jugadores</h1>
+<p>Cada jugador tiene un color único. Usa las flechas para moverte.</p>
+
+<div id="game-container"></div>
 
 <script>
     let socket = new WebSocket("ws://" + window.location.host + "/ws/game/");
-    let player = document.getElementById("player");
-    let x = 0, y = 0;
+    let gameContainer = document.getElementById("game-container");
+    let playerId = null;
+    let players = {};
 
     socket.onopen = function () {
         console.log("Conectado al WebSocket.");
@@ -38,15 +37,52 @@
 
     socket.onmessage = function (e) {
         let data = JSON.parse(e.data);
-        if (data.action === "update_position") {
-            x = data.x;
-            y = data.y;
-            player.style.left = x + "px";
-            player.style.top = y + "px";
+
+        if (data.action === "update_players") {
+            updatePlayers(data.players);
         }
     };
 
+    function updatePlayers(playersData) {
+        for (let id in playersData) {
+            let player = players[id];
+
+            if (!player) {
+                // Crear un nuevo jugador si no existe en el frontend
+                player = document.createElement("div");
+                player.classList.add("player");
+                player.style.backgroundColor = playersData[id].color;
+                gameContainer.appendChild(player);
+                players[id] = player;
+
+                // Si este jugador es el nuestro, guardamos su ID
+                if (!playerId) {
+                    playerId = id;
+                }
+            }
+
+            // Actualizar posición
+            player.style.left = playersData[id].position.x + "px";
+            player.style.top = playersData[id].position.y + "px";
+        }
+
+        // Remover jugadores que ya no están activos
+        for (let id in players) {
+            if (!(id in playersData)) {
+                gameContainer.removeChild(players[id]);
+                delete players[id];
+            }
+        }
+    }
+
+    // Manejar movimiento del jugador con el teclado
     document.addEventListener("keydown", function (event) {
+        if (!playerId || !players[playerId]) return;
+
+        let player = players[playerId];
+        let x = parseInt(player.style.left) || 0;
+        let y = parseInt(player.style.top) || 0;
+
         switch (event.key) {
             case "ArrowUp": y = Math.max(y - 10, 0); break;
             case "ArrowDown": y = Math.min(y + 10, 380); break;
@@ -54,12 +90,14 @@
             case "ArrowRight": x = Math.min(x + 10, 380); break;
         }
 
+        // Enviar el nuevo estado del jugador al servidor
         socket.send(JSON.stringify({
             action: "move",
             x: x,
             y: y
         }));
     });
+
 </script>
 
 </body>
