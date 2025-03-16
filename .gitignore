@@ -1,0 +1,44 @@
+# Archivos de sistema y entorno virtual
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.swp
+__pycache__/
+env/
+venv/
+bin/
+lib/
+lib64/
+include/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.coverage
+coverage.xml
+htmlcov/
+.vscode/
+.idea/
+.DS_Store
+
+# Archivos de configuración local
+.env
+*.sqlite3
+db.sqlite3
+
+# Migraciones que no deberían subirse
+*/migrations/*.py
+*/migrations/*.pyc
+!/core/migrations/__init__.py
+
+# Archivos estáticos generados
+staticfiles/
+media/
+
+# Archivos de dependencias
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Archivos generados por Celery
+celerybeat-schedule
