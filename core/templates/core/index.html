@@ -28,7 +28,7 @@
 <script>
     let socket = new WebSocket("ws://" + window.location.host + "/ws/game/");
     let gameContainer = document.getElementById("game-container");
-    let playerId = null;
+    let playerId = null;  // Se asignará desde el servidor
     let players = {};
 
     socket.onopen = function () {
@@ -37,6 +37,10 @@
 
     socket.onmessage = function (e) {
         let data = JSON.parse(e.data);
+
+        if (data.action === "assign_id") {
+            playerId = data.player_id;  // Guardamos nuestro ID
+        }
 
         if (data.action === "update_players") {
             updatePlayers(data.players);
@@ -54,11 +58,6 @@
                 player.style.backgroundColor = playersData[id].color;
                 gameContainer.appendChild(player);
                 players[id] = player;
-
-                // Si este jugador es el nuestro, guardamos su ID
-                if (!playerId) {
-                    playerId = id;
-                }
             }
 
             // Actualizar posición
