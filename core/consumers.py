@@ -11,14 +11,13 @@ BASE_POSITION = {"x": MAP_WIDTH // 2, "y": MAP_HEIGHT // 2}
 # Almacenar los jugadores activos
 active_players = {}
 
-# Generar asteroides en posiciones aleatorias
 def generate_map_objects():
     objects = []
-    for _ in range(50):  # 50 asteroides
+    for _ in range(100):  # Aumentamos el número de objetos espaciales
         objects.append({
             "type": "asteroid",
-            "x": random.randint(100, MAP_WIDTH - 100),
-            "y": random.randint(100, MAP_HEIGHT - 100)
+            "x": random.randint(0, MAP_WIDTH),  # Ahora cubre toda el área
+            "y": random.randint(0, MAP_HEIGHT)
         })
     return objects
 
