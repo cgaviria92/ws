@@ -1,79 +1,9 @@
 import json
-import random
 import uuid
-import asyncio
+import random
 from channels.generic.websocket import AsyncWebsocketConsumer
-from channels.layers import get_channel_layer
-
-MAP_WIDTH, MAP_HEIGHT = 5000, 5000
-BASE_POSITION = {"x": MAP_WIDTH // 2, "y": MAP_HEIGHT // 2}
-active_players = {}
-
-
-def generate_map_objects(num_objects=100):
-    """Generar objetos en el mapa (Ej: Asteroides)."""
-    return [
-        {"x": random.randint(0, MAP_WIDTH), "y": random.randint(0, MAP_HEIGHT)}
-        for _ in range(num_objects)
-    ]
-
-
-MAP_OBJECTS = generate_map_objects()
-
-# Diccionario de NPCs
-npc_data = {}
-
-
-def generate_npcs(num_npcs=5):
-    """Generar NPCs con posiciones y direcciones aleatorias."""
-    new_npcs = {}
-    for i in range(num_npcs):
-        npc_id = f"npc_{i}"
-        new_npcs[npc_id] = {
-            "position": {
-                "x": random.randint(0, MAP_WIDTH),
-                "y": random.randint(0, MAP_HEIGHT),
-            },
-            "direction": random.choice(["up", "down", "left", "right"]),
-            "speed": 5,
-        }
-    return new_npcs
-
-
-npc_data = generate_npcs()
-
-
-# Corrutina para mover NPCs
-async def move_npcs():
-    """Mueve los NPCs cada segundo y actualiza el estado en tiempo real."""
-    channel_layer = get_channel_layer()
-    while True:
-        for npc_id, npc in npc_data.items():
-            direction = npc["direction"]
-            speed = npc["speed"]
-
-            # Movimiento en el mapa
-            if direction == "up":
-                npc["position"]["y"] = max(npc["position"]["y"] - speed, 0)
-            elif direction == "down":
-                npc["position"]["y"] = min(npc["position"]["y"] + speed, MAP_HEIGHT)
-            elif direction == "left":
-                npc["position"]["x"] = max(npc["position"]["x"] - speed, 0)
-            elif direction == "right":
-                npc["position"]["x"] = min(npc["position"]["x"] + speed, MAP_WIDTH)
-
-            # Cambiar dirección aleatoriamente
-            if random.random() < 0.1:
-                npc["direction"] = random.choice(["up", "down", "left", "right"])
-
-        # Enviar actualización del mundo
-        await channel_layer.group_send(
-            "game_room",
-            {"type": "update_world", "players": active_players, "npcs": npc_data},
-        )
-
-        await asyncio.sleep(1)  # Esperar 1 segundo
-
+from core.game import BASE_POSITION, MAP_OBJECTS, active_players
+from core.npcs import npc_data
 
 class GameConsumer(AsyncWebsocketConsumer):
     async def connect(self):
