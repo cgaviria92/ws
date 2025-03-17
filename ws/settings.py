@@ -52,8 +52,11 @@ ASGI_APPLICATION = "ws.asgi.application"  # Usa el nombre correcto de tu proyect
 
 # Configurar el canal layer (si usarás Redis)
 CHANNEL_LAYERS = {
-    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
 }
+
 
 
 MIDDLEWARE = [
