@@ -1,36 +1,30 @@
-import json
-import uuid
-import random
+import asyncio, json, uuid, random
 from channels.generic.websocket import AsyncWebsocketConsumer
-from core.game import BASE_POSITION, MAP_OBJECTS, active_players
+from core.game import BASE_POSITION, MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, active_players
 from core.npcs import npc_data
+
 
 class GameConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.player_id = str(uuid.uuid4())
-        self.color = f"#{random.randint(0, 0xFFFFFF):06x}"
-        self.position = BASE_POSITION.copy()
-
+        color = "#%06x" % random.randint(0, 0xFFFFFF)
         active_players[self.player_id] = {
-            "color": self.color,
-            "position": self.position,
+            "color": color,
+            "position": BASE_POSITION.copy(),
         }
-
         await self.channel_layer.group_add("game_room", self.channel_name)
         await self.accept()
-
         await self.send(
             json.dumps(
                 {
                     "action": "initialize",
                     "player_id": self.player_id,
-                    "map": MAP_OBJECTS,
+                    "map_objects": MAP_OBJECTS,
                     "players": active_players,
                     "npcs": npc_data,
                 }
             )
         )
-
         await self.broadcast_update()
 
     async def disconnect(self, close_code):
@@ -46,22 +40,76 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "y": data["y"],
             }
             await self.broadcast_update()
+        elif data.get("action") == "mine":
+            await self.mine_asteroid(self.player_id)
 
     async def broadcast_update(self):
-        """Enviar actualización de jugadores y NPCs a todos."""
+        """🔄 Enviar actualización mundial a todos."""
         await self.channel_layer.group_send(
             "game_room",
-            {"type": "update_world", "players": active_players, "npcs": npc_data},
+            {
+                "type": "update_world",
+                "players": active_players,
+                "npcs": npc_data,
+                "map_objects": MAP_OBJECTS,
+            },
         )
 
     async def update_world(self, event):
-        """Se llama cuando se hace group_send("game_room", {...})."""
+        """🔄 Enviar actualización de mundo al cliente."""
         await self.send(
             json.dumps(
                 {
                     "action": "update_world",
-                    "players": event["players"],
-                    "npcs": event["npcs"],
+                    "players": event.get("players", {}),
+                    "npcs": event.get("npcs", {}),
+                    "map_objects": event.get("map_objects", MAP_OBJECTS),
                 }
             )
+        )
+
+    async def mine_asteroid(self, player_id):
+        """🔨 Minar asteroides y hacerlos reaparecer tras 10s."""
+        pos = active_players[player_id]["position"]
+        closest, best = None, float("inf")
+        for a in MAP_OBJECTS:
+            dist = ((a["x"] - pos["x"]) ** 2 + (a["y"] - pos["y"]) ** 2) ** 0.5
+            if dist < best:
+                best, closest = dist, a
+        if closest and best < 100:
+            MAP_OBJECTS.remove(closest)
+            await self.channel_layer.group_send(
+                "game_room",
+                {
+                    "type": "asteroid_removed",
+                    "asteroid": closest,
+                    "player_id": player_id,
+                },
+            )
+            await asyncio.sleep(10)
+            new_a = {
+                "x": random.randint(0, MAP_WIDTH),
+                "y": random.randint(0, MAP_HEIGHT),
+            }
+            MAP_OBJECTS.append(new_a)
+            await self.channel_layer.group_send(
+                "game_room", {"type": "asteroid_respawn", "asteroid": new_a}
+            )
+
+    async def asteroid_removed(self, event):
+        """🔄 Notifica que un asteroide fue minado."""
+        await self.send(
+            json.dumps(
+                {
+                    "action": "asteroid_removed",
+                    "asteroid": event["asteroid"],
+                    "player_id": event["player_id"],
+                }
+            )
+        )
+
+    async def asteroid_respawn(self, event):
+        """🔄 Notifica que un asteroide reapareció."""
+        await self.send(
+            json.dumps({"action": "asteroid_respawn", "asteroid": event["asteroid"]})
         )

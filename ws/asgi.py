@@ -25,9 +25,11 @@ application = ProtocolTypeRouter(
 # Creamos la tarea en el event loop para que se ejecute en segundo plano
 loop = asyncio.get_event_loop()
 
+
 async def start_npcs():
     logger.info("Iniciando corrutina de NPCs...")
     await move_npcs()
+
 
 logger.info("Programando la tarea 'move_npcs' en el event loop...")
 loop.create_task(start_npcs())

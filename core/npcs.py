@@ -5,6 +5,7 @@ from core.game import MAP_WIDTH, MAP_HEIGHT, active_players
 
 npc_data = {}
 
+
 def generate_npcs(num_npcs=5):
     """Generar NPCs con posiciones y direcciones aleatorias."""
     new_npcs = {}
@@ -20,7 +21,9 @@ def generate_npcs(num_npcs=5):
         }
     return new_npcs
 
+
 npc_data = generate_npcs()
+
 
 async def move_npcs():
     """Mueve los NPCs continuamente en el mapa y envía actualizaciones."""

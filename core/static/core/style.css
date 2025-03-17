@@ -42,6 +42,12 @@ body {
     right: 10px;
     width: 200px;
     height: 200px;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0, 0, 0, 0.7);
     border: 2px solid white;
+}
+button i {
+    font-size: 24px;
+}
+button:active {
+    transform: scale(0.95);
 }
