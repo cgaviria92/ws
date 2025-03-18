@@ -109,11 +109,40 @@ function highlightMineableAsteroids() {
     let ax = parseInt(ast.dataset.x), ay = parseInt(ast.dataset.y);
     let px = players[playerId].position.x, py = players[playerId].position.y;
     let dist = Math.sqrt((ax - px) ** 2 + (ay - py) ** 2);
-    if (dist < 100) { ast.style.border = "2px solid yellow"; found = true; }
-    else ast.style.border = "none";
+    if (dist < 100) { 
+      ast.style.border = "2px solid yellow"; 
+      found = true;
+    } else ast.style.border = "none";
   });
-  mineButton.style.display = found ? "block" : "none";
+
+  // Mostrar el botón solo si hay un asteroide cerca y no se ha minado recientemente
+  if (found && socket.readyState === WebSocket.OPEN) {
+    mineButton.style.display = "block";
+  } else {
+    mineButton.style.display = "none";
+  }
 }
+function enablePlayerMovement() {
+  document.addEventListener("keydown", handlePlayerMovement);
+}
+
+function disablePlayerMovement() {
+  document.removeEventListener("keydown", handlePlayerMovement);
+}
+
+function handlePlayerMovement(event) {
+  if (!playerId || !players[playerId] || socket.readyState !== WebSocket.OPEN) return;
+  
+  let { x, y } = players[playerId].position, speed = 10;
+  if (event.key === "ArrowUp" && y - speed >= 0) y -= speed;
+  else if (event.key === "ArrowDown" && y + speed <= MAP_HEIGHT) y += speed;
+  else if (event.key === "ArrowLeft" && x - speed >= 0) x -= speed;
+  else if (event.key === "ArrowRight" && x + speed <= MAP_WIDTH) x += speed;
+  else return;
+  
+  socket.send(JSON.stringify({ action: "move", x, y }));
+}
+
 
 document.addEventListener("keydown", ({ key }) => {
   if (!playerId || !players[playerId] || socket.readyState !== WebSocket.OPEN) return;
@@ -127,9 +156,37 @@ document.addEventListener("keydown", ({ key }) => {
 });
 
 mineButton.addEventListener("click", () => {
-  if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ action: "mine" }));
-  } else {
+  if (socket.readyState !== WebSocket.OPEN) {
     console.warn("⚠ No se pudo enviar: WebSocket no está OPEN.");
+    return;
   }
+
+  // Ocultar botón de minar inmediatamente
+  mineButton.style.display = "none";
+
+  // Encuentra el asteroide más cercano y elimínalo localmente
+  let closestAsteroid = null;
+  let bestDist = Infinity;
+  document.querySelectorAll(".asteroid").forEach(ast => {
+    let ax = parseInt(ast.dataset.x), ay = parseInt(ast.dataset.y);
+    let px = players[playerId].position.x, py = players[playerId].position.y;
+    let dist = Math.sqrt((ax - px) ** 2 + (ay - py) ** 2);
+    if (dist < 100 && dist < bestDist) {
+      bestDist = dist;
+      closestAsteroid = ast;
+    }
+  });
+
+  if (closestAsteroid) {
+    // Eliminar asteroide localmente antes de enviar la solicitud
+    mapObjects = mapObjects.filter(a => !(a.x == closestAsteroid.dataset.x && a.y == closestAsteroid.dataset.y));
+    closestAsteroid.remove();
+    drawMiniMap(); // Actualizar minimapa
+  }
+
+  // Enviar solicitud al servidor
+  socket.send(JSON.stringify({ action: "mine" }));
+
+  // 🔥 IMPORTANTE: Permitir que el jugador siga moviéndose
+  enablePlayerMovement();
 });
