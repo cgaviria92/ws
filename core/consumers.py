@@ -17,8 +17,8 @@ class GameConsumer(AsyncWebsocketConsumer):
             "position": BASE_POSITION.copy(),
             "health": 100,
         }
-        # Asegurar que cada NPC tenga 'position', 'health', 'level', 'direction'
-        for npc_id, npc in npc_data.items():
+        # Asegurar data en NPCs
+        for nid, npc in npc_data.items():
             if "position" not in npc:
                 npc["position"] = {
                     "x": random.randint(0, MAP_WIDTH),
@@ -59,15 +59,19 @@ class GameConsumer(AsyncWebsocketConsumer):
                     "x": data["x"],
                     "y": data["y"],
                 }
-                await self.broadcast_update()
+                await self.broadcast_update()  # actualiza todo
             elif act == "mine":
                 asyncio.create_task(self.mine_asteroid(self.player_id))
             elif act == "shoot":
-                asyncio.create_task(self.shoot(self.player_id))
+                # 🔥 Usar actualización parcial de NPCs
+                asyncio.create_task(self.shoot_partial(self.player_id))
         except Exception as e:
             print(f"❌ Error en receive: {e}")
 
-    async def shoot(self, player_id):
+    # -------------------------------------------------------------------
+    #  🎯 DISPARO con actualización parcial de NPCs (NO broadcast_update)
+    # -------------------------------------------------------------------
+    async def shoot_partial(self, player_id):
         pos = active_players[player_id]["position"]
         closest, best = None, float("inf")
         for npc_id, npc in npc_data.items():
@@ -98,7 +102,23 @@ class GameConsumer(AsyncWebsocketConsumer):
                 await self.channel_layer.group_send(
                     "game_room", {"type": "npc_respawn", "npc": new_npc}
                 )
+            # 🔥 En lugar de broadcast_update, haz partial
+            await self.broadcast_npcs()
 
+    # -------------------------------------------------------------------
+    #  Función para actualización PARCIAL de NPCs
+    # -------------------------------------------------------------------
+    async def broadcast_npcs(self):
+        await self.channel_layer.group_send(
+            "game_room", {"type": "update_npcs", "npcs": npc_data}
+        )
+
+    async def update_npcs(self, event):
+        await self.send(json.dumps({"action": "update_npcs", "npcs": event["npcs"]}))
+
+    # -------------------------------------------------------------------
+    #  Resto
+    # -------------------------------------------------------------------
     async def npc_killed(self, event):
         await self.send(json.dumps({"action": "npc_killed", "npc_id": event["npc_id"]}))
 

@@ -16,16 +16,18 @@ function connectWebSocket() {
         players = data.players || {};
         npcs = data.npcs || {};
         mapObjects = Array.isArray(data.map_objects) ? data.map_objects : [];
-        renderAll(); break;
+        renderAll();
+        break;
       case "update_players": updatePlayers(data.players); break;
-      case "update_npcs": updateNpcs(data.npcs); break;// NUEVO
+      case "update_npcs": updateNpcs(data.npcs); break; // <--- En lugar de re-dibujar todo, llama updateNpcs
       case "asteroid_removed": removeAsteroid(data.asteroid); break;
       case "asteroid_respawn": mapObjects.push(data.asteroid); renderObjects(); break;
       case "update_world":
         players = data.players || {};
         npcs = data.npcs || {};
         mapObjects = Array.isArray(data.map_objects) ? data.map_objects : [];
-        renderAll(); break;
+        renderAll();
+        break;
       default: console.warn("⚠ Acción no manejada:", data.action);
     }
   };
@@ -53,6 +55,7 @@ function renderAll() {
   updatePlayers(players);
   drawMiniMap();
 }
+
 
 // Asteroides
 function renderObjects() {
