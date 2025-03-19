@@ -5,6 +5,7 @@ from core.npcs import npc_data
 
 NPC_LIFE = {1: 50, 2: 75, 3: 100}
 NPC_DAMAGE = {1: 5, 2: 10, 3: 15}
+DIRECTIONS = ["up", "down", "left", "right"]
 
 
 class GameConsumer(AsyncWebsocketConsumer):
@@ -16,12 +17,19 @@ class GameConsumer(AsyncWebsocketConsumer):
             "position": BASE_POSITION.copy(),
             "health": 100,
         }
-        # Aseguramos que cada NPC tenga health y level
-        for nid, npc in npc_data.items():
+        # Asegurar que cada NPC tenga 'position', 'health', 'level', 'direction'
+        for npc_id, npc in npc_data.items():
+            if "position" not in npc:
+                npc["position"] = {
+                    "x": random.randint(0, MAP_WIDTH),
+                    "y": random.randint(0, MAP_HEIGHT),
+                }
             if "health" not in npc:
                 npc["health"] = 50
             if "level" not in npc:
                 npc["level"] = 1
+            if "direction" not in npc:
+                npc["direction"] = random.choice(DIRECTIONS)
         await self.channel_layer.group_add("game_room", self.channel_name)
         await self.accept()
         await self.send(
@@ -84,6 +92,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                     },
                     "level": random.randint(1, 3),
                     "health": NPC_LIFE[random.randint(1, 3)],
+                    "direction": random.choice(DIRECTIONS),
                 }
                 npc_data[closest] = new_npc
                 await self.channel_layer.group_send(
