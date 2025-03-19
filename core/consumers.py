@@ -18,7 +18,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             "health": 100,
         }
         # Asegurar data en NPCs
-        for nid, npc in npc_data.items():
+        for npc_id, npc in npc_data.items():
             if "position" not in npc:
                 npc["position"] = {
                     "x": random.randint(0, MAP_WIDTH),
@@ -30,6 +30,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 npc["level"] = 1
             if "direction" not in npc:
                 npc["direction"] = random.choice(DIRECTIONS)
+            if "speed" not in npc:
+                npc["speed"] = 3  # 👈 Fijamos speed por defecto
         await self.channel_layer.group_add("game_room", self.channel_name)
         await self.accept()
         await self.send(
@@ -97,12 +99,12 @@ class GameConsumer(AsyncWebsocketConsumer):
                     "level": random.randint(1, 3),
                     "health": NPC_LIFE[random.randint(1, 3)],
                     "direction": random.choice(DIRECTIONS),
+                    "speed": 3,  # 👈 Aseguramos la clave 'speed'
                 }
                 npc_data[closest] = new_npc
                 await self.channel_layer.group_send(
                     "game_room", {"type": "npc_respawn", "npc": new_npc}
                 )
-            # 🔥 En lugar de broadcast_update, haz partial
             await self.broadcast_npcs()
 
     # -------------------------------------------------------------------
